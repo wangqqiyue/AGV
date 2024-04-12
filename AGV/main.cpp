@@ -1,17 +1,21 @@
-#include <stdio.h>
-#include <graphics.h>
 #include "AGV.h"
 
 Agent *agents[AGENTS_NUM];
 int agentsNum=0;
 
 void update() {
+	cleardevice();
+	BeginBatchDraw();
 	for (int i = 0; i < agentsNum; i++) {
+		agents[i]->drawInitPath();
+		agents[i]->run();
 		agents[i]->drawAgent();
+		agents[i]->drawPath();
 	}
+	FlushBatchDraw();
 }
 
-void addJob(Position src, Position dst,COLORREF color) {
+void addJob(POINT src, POINT dst,COLORREF color) {
 	agents[agentsNum] = new Agent(src,dst,color, agentsNum);
 	agentsNum++;
 }
