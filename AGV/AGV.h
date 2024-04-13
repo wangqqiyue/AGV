@@ -60,12 +60,15 @@ public:
 	COLORREF color;//颜色
 	int id;//agentID
 
+
 	Agent(POINT curr, POINT dst, COLORREF color, int id);
 	void drawInitPath();
 	void drawAgent();
 	void drawPath();
 	void run();
-
+	void avoidConflict(Agent **agents, int agentsNum);
+	Agent* getNearest(Agent** agents, int agentsNum);
+	int getPriority();
 };
 Agent::Agent(POINT src, POINT dst, COLORREF  color, int id) {
 	this->curr = src; 
@@ -118,8 +121,71 @@ void Agent::run() {
 		last.y = curr.y;
 		curr.x += speed * ang.cos;
 		curr.y += speed * ang.sin;
-		//修正角度
-		ang.calc(curr, dst);
+
 		path.push_back(curr);
 	}
+}
+
+//获取离自己最近的小车
+Agent* Agent::getNearest(Agent** agents, int agentsNum) {
+	int minDist = WIDTH+HEIGHT;
+	int dist = 0;
+	int nearest = 0;
+	for (int i = 0; i < agentsNum; i++) {
+		if (i == id) {
+			continue;
+		}
+		else {
+			dist=distance(agents[i]->curr, curr);
+			if (dist < minDist) {
+				minDist = dist;
+				nearest = i;
+			}
+		}
+	}
+
+	return agents[nearest];
+}
+//优先级,简单计算到终点的剩余
+int Agent::getPriority() {
+	return distance(src, dst);
+}
+void Agent::avoidConflict(Agent** agents, int agentsNum) {
+	Agent* nearest = getNearest(agents, agentsNum);
+	POINT nextPosition;
+	POINT nextPositionNearest;
+	int dist = 0;
+	int distNext = 0;
+	nextPosition.x = curr.x + speed * ang.cos;
+	nextPosition.y = curr.y + speed * ang.sin;
+	nextPositionNearest.x = nearest->curr.x + nearest->speed * nearest->ang.cos;
+	nextPositionNearest.y = nearest->curr.y + nearest->speed * nearest->ang.sin;
+	dist = distance(nearest->curr, curr);
+	distNext = distance(nextPosition, nextPositionNearest);
+
+	if (dist < RADIUS * 4 || distNext < RADIUS * 2) {
+		if (getPriority() <= nearest->getPriority()) {
+			speed -=1;
+			//修正角度,向远离最近邻居的方向行驶
+			ang.calc(nearest->curr, curr);
+		}
+		else {
+			speed += 1;
+			if (speed > SPEED_MAX) {
+				speed = SPEED_MAX;
+			}
+		}
+		
+	}
+	else {
+		speed += 1;
+		if (speed > SPEED_MAX) {
+			speed = SPEED_MAX;
+		}
+		//修正角度
+		ang.calc(curr, dst);
+	}
+
+	
+
 }
