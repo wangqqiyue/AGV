@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <graphics.h>
 #include <vector>
+#include <iostream>
+#include <fstream>
 
 using namespace std;
 
@@ -59,16 +61,25 @@ public:
 	Angle ang;//与正方向夹角
 	COLORREF color;//颜色
 	int id;//agentID
-
+	fstream logFile;//日志文件
 
 	Agent(POINT curr, POINT dst, COLORREF color, int id);
+	~Agent();
+	//初始化理想路径
 	void drawInitPath();
 	void drawAgent();
 	void drawPath();
 	void run();
+	//规避障碍
 	void avoidConflict(Agent **agents, int agentsNum);
 	Agent* getNearest(Agent** agents, int agentsNum);
 	int getPriority();
+	//判断是否结束
+	bool isFinish();
+	//记录日志
+	void recordLog(int period);
+	//创建日志文件
+	void createLog();
 };
 Agent::Agent(POINT src, POINT dst, COLORREF  color, int id) {
 	this->curr = src; 
@@ -81,7 +92,13 @@ Agent::Agent(POINT src, POINT dst, COLORREF  color, int id) {
 	this->id = id; 
 	path.push_back(src);
 	drawInitPath(); 
+	createLog();
 };
+//析构函数
+Agent::~Agent() {
+	//关闭日志文件
+	logFile.close();
+}
 
 //初始化路径
 void Agent::drawInitPath() {
@@ -146,10 +163,12 @@ Agent* Agent::getNearest(Agent** agents, int agentsNum) {
 
 	return agents[nearest];
 }
-//优先级,简单计算到终点的剩余
+//优先级,简单计算从起点到当前位置的距离
 int Agent::getPriority() {
-	return distance(src, dst);
+	return distance(src, curr);
 }
+//规避障碍
+//算法是找到离自己最近的Agent，如果两者距离小于一个值，就向反方向运动
 void Agent::avoidConflict(Agent** agents, int agentsNum) {
 	Agent* nearest = getNearest(agents, agentsNum);
 	POINT nextPosition;
@@ -163,9 +182,12 @@ void Agent::avoidConflict(Agent** agents, int agentsNum) {
 	dist = distance(nearest->curr, curr);
 	distNext = distance(nextPosition, nextPositionNearest);
 
-	if (dist < RADIUS * 4 || distNext < RADIUS * 2) {
+	if (dist < RADIUS * 5 || distNext < RADIUS * 3) {
 		if (getPriority() <= nearest->getPriority()) {
-			speed -=1;
+			speed -= 1;
+			if (speed < 0) {
+				speed = 0;
+			}
 			//修正角度,向远离最近邻居的方向行驶
 			ang.calc(nearest->curr, curr);
 		}
@@ -185,7 +207,27 @@ void Agent::avoidConflict(Agent** agents, int agentsNum) {
 		//修正角度
 		ang.calc(curr, dst);
 	}
+}
 
-	
+//记录日志
+void Agent::recordLog(int period) {
+	logFile << "\t" << period << "\t\t" << curr.x << "\t\t" << curr.y << "\t\t" << speed << endl;
+}
 
+//创建日志文件
+void Agent::createLog() {
+	char logFileName[TEXT_LEN]={0};
+	sprintf_s(logFileName,"Agent_%d.txt",id);
+	logFile.open(logFileName,ios::out);
+
+    if (!logFile) {
+        cerr << "无法创建文件" << logFileName << endl;
+        return ;
+    }
+
+	logFile << "\t周期" << "\t坐标x" << "\t坐标y" << "\t速度" << endl;
+}
+
+bool Agent::isFinish() {
+	return distance(curr, dst) <= RADIUS;
 }
